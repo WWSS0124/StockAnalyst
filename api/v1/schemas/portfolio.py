@@ -82,6 +82,10 @@ class PortfolioEventCreatedResponse(BaseModel):
     id: int
 
 
+class PortfolioDeleteResponse(BaseModel):
+    deleted: int
+
+
 class PortfolioTradeListItem(BaseModel):
     id: int
     account_id: int
@@ -155,7 +159,19 @@ class PortfolioPositionItem(BaseModel):
     last_price: float
     market_value_base: float
     unrealized_pnl_base: float
+    unrealized_pnl_pct: Optional[float] = None
     valuation_currency: str
+    price_source: str = "unknown"
+    price_provider: Optional[str] = None
+    price_date: Optional[str] = None
+    price_stale: bool = False
+    price_available: bool = True
+
+
+class PortfolioPositionAnalysisRequest(BaseModel):
+    account_id: Optional[int] = Field(None, description="Optional account id; required when a symbol is held in multiple accounts")
+    analysis_phase: Literal["auto", "premarket", "intraday", "postmarket"] = "auto"
+    force: bool = Field(False, description="Force refresh analysis inputs without bypassing duplicate in-flight tasks")
 
 
 class PortfolioAccountSnapshot(BaseModel):
@@ -239,6 +255,8 @@ class PortfolioImportBrokerListResponse(BaseModel):
 class PortfolioFxRefreshResponse(BaseModel):
     as_of: str
     account_count: int
+    refresh_enabled: bool
+    disabled_reason: Optional[str] = None
     pair_count: int
     updated_count: int
     stale_count: int

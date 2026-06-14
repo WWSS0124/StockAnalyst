@@ -1,5 +1,6 @@
 import apiClient from './index';
 import { toCamelCase } from './utils';
+import type { TaskAccepted } from '../types/analysis';
 import type {
   PortfolioAccountItem,
   PortfolioAccountCreateRequest,
@@ -9,10 +10,13 @@ import type {
   PortfolioCorporateActionCreateRequest,
   PortfolioCorporateActionListResponse,
   PortfolioCostMethod,
+  PortfolioDeleteResponse,
   PortfolioEventCreatedResponse,
+  PortfolioFxRefreshResponse,
   PortfolioImportBrokerListResponse,
   PortfolioImportCommitResponse,
   PortfolioImportParseResponse,
+  PortfolioPositionAnalysisRequest,
   PortfolioRiskResponse,
   PortfolioSnapshotResponse,
   PortfolioTradeCreateRequest,
@@ -23,6 +27,11 @@ type SnapshotQuery = {
   accountId?: number;
   asOf?: string;
   costMethod?: PortfolioCostMethod;
+};
+
+type FxRefreshQuery = {
+  accountId?: number;
+  asOf?: string;
 };
 
 type EventQuery = {
@@ -57,6 +66,17 @@ function buildSnapshotParams(query: SnapshotQuery): Record<string, string | numb
   }
   if (query.costMethod) {
     params.cost_method = query.costMethod;
+  }
+  return params;
+}
+
+function buildFxRefreshParams(query: FxRefreshQuery): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  if (query.accountId != null) {
+    params.account_id = query.accountId;
+  }
+  if (query.asOf) {
+    params.as_of = query.asOf;
   }
   return params;
 }
@@ -100,6 +120,11 @@ export const portfolioApi = {
     return toCamelCase<PortfolioAccountItem>(response.data);
   },
 
+  async deleteAccount(accountId: number): Promise<PortfolioDeleteResponse> {
+    const response = await apiClient.delete<Record<string, unknown>>(`/api/v1/portfolio/accounts/${accountId}`);
+    return toCamelCase<PortfolioDeleteResponse>(response.data);
+  },
+
   async getSnapshot(query: SnapshotQuery = {}): Promise<PortfolioSnapshotResponse> {
     const response = await apiClient.get<Record<string, unknown>>('/api/v1/portfolio/snapshot', {
       params: buildSnapshotParams(query),
@@ -107,11 +132,30 @@ export const portfolioApi = {
     return toCamelCase<PortfolioSnapshotResponse>(response.data);
   },
 
+  async analyzePosition(symbol: string, payload: PortfolioPositionAnalysisRequest = {}): Promise<TaskAccepted> {
+    const response = await apiClient.post<Record<string, unknown>>(
+      `/api/v1/portfolio/positions/${encodeURIComponent(symbol)}/analysis`,
+      {
+        account_id: payload.accountId,
+        analysis_phase: payload.analysisPhase ?? 'auto',
+        force: payload.force ?? false,
+      },
+    );
+    return toCamelCase<TaskAccepted>(response.data);
+  },
+
   async getRisk(query: SnapshotQuery = {}): Promise<PortfolioRiskResponse> {
     const response = await apiClient.get<Record<string, unknown>>('/api/v1/portfolio/risk', {
       params: buildSnapshotParams(query),
     });
     return toCamelCase<PortfolioRiskResponse>(response.data);
+  },
+
+  async refreshFx(query: FxRefreshQuery = {}): Promise<PortfolioFxRefreshResponse> {
+    const response = await apiClient.post<Record<string, unknown>>('/api/v1/portfolio/fx/refresh', undefined, {
+      params: buildFxRefreshParams(query),
+    });
+    return toCamelCase<PortfolioFxRefreshResponse>(response.data);
   },
 
   async createTrade(payload: PortfolioTradeCreateRequest): Promise<PortfolioEventCreatedResponse> {
@@ -132,6 +176,11 @@ export const portfolioApi = {
     return toCamelCase<PortfolioEventCreatedResponse>(response.data);
   },
 
+  async deleteTrade(tradeId: number): Promise<PortfolioDeleteResponse> {
+    const response = await apiClient.delete<Record<string, unknown>>(`/api/v1/portfolio/trades/${tradeId}`);
+    return toCamelCase<PortfolioDeleteResponse>(response.data);
+  },
+
   async createCashLedger(payload: PortfolioCashLedgerCreateRequest): Promise<PortfolioEventCreatedResponse> {
     const response = await apiClient.post<Record<string, unknown>>('/api/v1/portfolio/cash-ledger', {
       account_id: payload.accountId,
@@ -142,6 +191,11 @@ export const portfolioApi = {
       note: payload.note,
     });
     return toCamelCase<PortfolioEventCreatedResponse>(response.data);
+  },
+
+  async deleteCashLedger(entryId: number): Promise<PortfolioDeleteResponse> {
+    const response = await apiClient.delete<Record<string, unknown>>(`/api/v1/portfolio/cash-ledger/${entryId}`);
+    return toCamelCase<PortfolioDeleteResponse>(response.data);
   },
 
   async createCorporateAction(payload: PortfolioCorporateActionCreateRequest): Promise<PortfolioEventCreatedResponse> {
@@ -157,6 +211,11 @@ export const portfolioApi = {
       note: payload.note,
     });
     return toCamelCase<PortfolioEventCreatedResponse>(response.data);
+  },
+
+  async deleteCorporateAction(actionId: number): Promise<PortfolioDeleteResponse> {
+    const response = await apiClient.delete<Record<string, unknown>>(`/api/v1/portfolio/corporate-actions/${actionId}`);
+    return toCamelCase<PortfolioDeleteResponse>(response.data);
   },
 
   async listTrades(query: TradeListQuery = {}): Promise<PortfolioTradeListResponse> {
